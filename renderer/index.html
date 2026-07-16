@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self';
+                 img-src 'self' data: blob: file: https: http:;
+                 media-src 'self' data: blob: file: https: http:;
+                 style-src 'self' 'unsafe-inline';
+                 script-src 'self';
+                 font-src 'self' data:;
+                 connect-src 'self';" />
+  <title>Markdown Viewer</title>
+
+  <!-- GitHub markdown themes (one enabled at a time) -->
+  <link id="gh-light" rel="stylesheet" href="../vendor/github-markdown-light.css" />
+  <link id="gh-dark" rel="stylesheet" href="../vendor/github-markdown-dark.css" disabled />
+  <!-- highlight.js code themes -->
+  <link id="hl-light" rel="stylesheet" href="../vendor/hljs-github-light.css" />
+  <link id="hl-dark" rel="stylesheet" href="../vendor/hljs-github-dark.css" disabled />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-theme="light">
+  <header id="toolbar">
+    <div class="tb-left">
+      <button id="btn-back" class="tb-btn icon" title="Back" disabled>‹</button>
+      <button id="btn-open" class="tb-btn" title="Open a Markdown file (⌘O)">Open</button>
+      <span class="tb-title" id="doc-title" title=""></span>
+    </div>
+    <div class="tb-center">
+      <div class="seg" id="mode-seg" hidden>
+        <button id="mode-preview" class="seg-btn active" title="Preview">Preview</button>
+        <button id="mode-edit" class="seg-btn" title="Edit (⌘E)">Edit</button>
+      </div>
+    </div>
+    <div class="tb-right">
+      <button id="btn-save" class="tb-btn" title="Save (⌘S)" hidden disabled>Save</button>
+      <button id="btn-reveal" class="tb-btn icon" title="Reveal in Finder" disabled>⤴</button>
+      <button id="btn-theme" class="tb-btn" title="Toggle theme (⌘⇧L)">Auto</button>
+    </div>
+  </header>
+
+  <main id="workspace">
+    <section id="editor-pane">
+      <textarea id="editor" spellcheck="false" placeholder="Markdown source…"></textarea>
+    </section>
+    <section id="preview-pane">
+      <div id="dropzone" class="dropzone">
+        <div class="dz-inner">
+          <div class="dz-glyph">⬇</div>
+          <h1>Drop a Markdown file here</h1>
+          <p>or <button id="dz-open" class="link-btn">choose a file…</button></p>
+          <p class="dz-hint">.md · .markdown · .mdx — rendered like GitHub</p>
+        </div>
+      </div>
+      <article id="content" class="markdown-body" hidden></article>
+    </section>
+  </main>
+
+  <div id="drag-overlay" class="drag-overlay"><div>Drop to open</div></div>
+
+  <script src="../vendor/purify.min.js"></script>
+  <script src="../vendor/mermaid.min.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>
