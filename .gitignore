@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Packaged app (electron-builder)
+dist/
+
+# Generated icon (npm run icon)
+build/
+
+# Copied out of node_modules (npm run vendor)
+vendor/
+
+# IDE
+.idea/
+.vscode/
+.vs/
+
+# macOS
+.DS_Store
+
+# Local tool state
+.claude/settings.local.json
+
+# Logs
+*.log
+npm-debug.log*
