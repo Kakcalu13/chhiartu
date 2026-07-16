@@ -205,7 +205,7 @@ npm run icon   # rebuild build/icon.icns from assets/icon-source.png
 | `lib/workspace.js` | Folder scan, git revision, file stats |
 | `renderer/` | The reading UI — shell, design system, panes |
 | `scripts/` | Vendoring, icon generation, tests |
-| `samples/` | A small workspace that exercises every feature |
+| `test/fixtures/` | A small workspace the tests render and scan |
 
 It is worth knowing:
 
