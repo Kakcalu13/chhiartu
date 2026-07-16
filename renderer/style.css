@@ -1,0 +1,235 @@
+:root {
+  --tb-h: 44px;
+  --bg: #ffffff;
+  --tb-bg: #f6f8fa;
+  --tb-border: #d0d7de;
+  --tb-fg: #1f2328;
+  --btn-bg: #ffffff;
+  --btn-border: #d0d7de;
+  --btn-hover: #f3f4f6;
+  --muted: #656d76;
+  --accent: #0969da;
+}
+body[data-theme="dark"] {
+  --bg: #0d1117;
+  --tb-bg: #161b22;
+  --tb-border: #30363d;
+  --tb-fg: #e6edf3;
+  --btn-bg: #21262d;
+  --btn-border: #30363d;
+  --btn-hover: #30363d;
+  --muted: #8b949e;
+  --accent: #2f81f7;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  color: var(--tb-fg);
+}
+
+/* Toolbar */
+#toolbar {
+  height: var(--tb-h);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 0 84px; /* leave room for the macOS traffic lights */
+  background: var(--tb-bg);
+  border-bottom: 1px solid var(--tb-border);
+  -webkit-app-region: drag;
+  user-select: none;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+.tb-left { display: flex; align-items: center; gap: 6px; -webkit-app-region: no-drag; flex: 1; min-width: 0; }
+.tb-right { display: flex; align-items: center; gap: 6px; -webkit-app-region: no-drag; flex: 1; justify-content: flex-end; }
+.tb-center { display: flex; align-items: center; -webkit-app-region: no-drag; }
+.tb-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--tb-fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 4px;
+  opacity: 0.7;
+  min-width: 0;
+}
+
+/* Segmented Preview / Edit control */
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--btn-border);
+  border-radius: 7px;
+  overflow: hidden;
+  -webkit-app-region: no-drag;
+}
+.seg[hidden] { display: none; }
+.seg-btn {
+  border: none;
+  background: var(--btn-bg);
+  color: var(--tb-fg);
+  font: inherit;
+  font-size: 12px;
+  height: 26px;
+  padding: 0 14px;
+  cursor: pointer;
+  line-height: 1;
+}
+.seg-btn + .seg-btn { border-left: 1px solid var(--btn-border); }
+.seg-btn:hover:not(.active) { background: var(--btn-hover); }
+.seg-btn.active { background: var(--accent); color: #fff; }
+.tb-btn {
+  -webkit-app-region: no-drag;
+  font: inherit;
+  font-size: 13px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--btn-border);
+  background: var(--btn-bg);
+  color: var(--tb-fg);
+  cursor: pointer;
+  line-height: 1;
+}
+.tb-btn:hover:not(:disabled) { background: var(--btn-hover); }
+.tb-btn:disabled { opacity: 0.4; cursor: default; }
+.tb-btn.icon { width: 30px; padding: 0; font-size: 16px; }
+#btn-save:not(:disabled) { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+/* Workspace: editor + preview split */
+#workspace {
+  height: calc(100% - var(--tb-h));
+  display: flex;
+  align-items: stretch;
+}
+#editor-pane {
+  flex: 1 1 50%;
+  min-width: 0;
+  overflow: auto;
+  border-right: 1px solid var(--tb-border);
+  display: none;
+  background: var(--bg);
+}
+#preview-pane {
+  flex: 1 1 100%;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+/* In edit mode, both panes share the width */
+body.mode-edit #editor-pane { display: block; }
+body.mode-edit #preview-pane { flex: 1 1 50%; }
+
+#editor {
+  display: block;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border: none;
+  outline: none;
+  resize: none;
+  margin: 0;
+  padding: 20px 24px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.65;
+  tab-size: 2;
+  background: var(--bg);
+  color: var(--tb-fg);
+  -webkit-user-select: text;
+  user-select: text;
+}
+/* Slightly tighter preview padding when the pane is narrow (edit mode) */
+body.mode-edit .markdown-body { padding: 24px 28px 100px; max-width: none; }
+
+/* Content container mimics a GitHub file view */
+.markdown-body {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 32px 40px 120px;
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: auto;
+}
+.markdown-body * {
+  -webkit-user-select: text;
+  user-select: text;
+}
+@media (max-width: 767px) {
+  .markdown-body { padding: 20px 16px 80px; }
+}
+
+/* Dropzone */
+.dropzone {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+.dz-inner { text-align: center; color: var(--muted); max-width: 460px; }
+.dz-glyph {
+  font-size: 44px;
+  width: 96px; height: 96px; line-height: 96px;
+  margin: 0 auto 20px;
+  border: 2px dashed var(--tb-border);
+  border-radius: 50%;
+  color: var(--accent);
+}
+.dz-inner h1 { font-size: 20px; margin: 0 0 6px; color: var(--tb-fg); font-weight: 600; }
+.dz-inner p { margin: 4px 0; font-size: 14px; }
+.dz-hint { font-size: 12px; opacity: 0.75; margin-top: 14px !important; }
+.link-btn {
+  background: none; border: none; color: var(--accent);
+  cursor: pointer; font: inherit; font-size: 14px; padding: 0; text-decoration: underline;
+}
+
+/* Drag overlay */
+.drag-overlay {
+  position: fixed;
+  inset: var(--tb-h) 0 0 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  backdrop-filter: blur(1px);
+  z-index: 30;
+  pointer-events: none;
+}
+.drag-overlay > div {
+  border: 3px dashed var(--accent);
+  color: var(--accent);
+  font-size: 22px;
+  font-weight: 600;
+  padding: 40px 64px;
+  border-radius: 16px;
+  background: var(--bg);
+}
+body.dragging .drag-overlay { display: flex; }
+
+/* mermaid blocks: center + remove the code background while pending */
+.markdown-body pre.mermaid {
+  background: transparent;
+  padding: 8px 0;
+  text-align: center;
+  overflow-x: auto;
+}
+.markdown-body pre.mermaid svg { max-width: 100%; height: auto; }
+.markdown-body pre.mermaid[data-processed] { line-height: normal; }
+
+/* error card */
+.error-card {
+  max-width: 720px; margin: 40px auto; padding: 20px 24px;
+  border: 1px solid #cf222e; border-radius: 8px;
+  background: color-mix(in srgb, #cf222e 8%, var(--bg));
+  color: var(--tb-fg);
+}
+.error-card h2 { margin-top: 0; color: #cf222e; }
+.error-card code { word-break: break-all; }
