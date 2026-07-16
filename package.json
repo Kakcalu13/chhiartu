@@ -1,0 +1,60 @@
+{
+  "name": "github-md-viewer",
+  "version": "1.0.0",
+  "description": "Drag-and-drop Markdown viewer with GitHub-style rendering",
+  "main": "main.js",
+  "author": "kaknockout3",
+  "license": "MIT",
+  "scripts": {
+    "vendor": "node scripts/copy-vendor.js",
+    "icon": "node scripts/make-icon.js",
+    "start": "npm run vendor && electron .",
+    "dist": "npm run vendor && npm run icon && electron-builder --mac"
+  },
+  "build": {
+    "appId": "com.kaknockout3.mdviewer",
+    "productName": "Markdown Viewer",
+    "asar": true,
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        {
+          "target": "dir",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "identity": null,
+      "icon": "build/icon.icns",
+      "fileAssociations": [
+        {
+          "ext": [
+            "md",
+            "markdown",
+            "mdown",
+            "mkd",
+            "mdx",
+            "markdn"
+          ],
+          "name": "Markdown Document",
+          "role": "Viewer"
+        }
+      ]
+    }
+  },
+  "devDependencies": {
+    "dompurify": "^3.2.3",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "github-markdown-css": "^5.8.1",
+    "mermaid": "^11.4.1",
+    "sharp": "^0.35.3"
+  },
+  "dependencies": {
+    "highlight.js": "^11.11.1",
+    "marked": "^15.0.6",
+    "marked-gfm-heading-id": "^4.1.1",
+    "marked-highlight": "^2.2.1"
+  }
+}
