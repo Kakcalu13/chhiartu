@@ -5,28 +5,20 @@ const path = require('path');
 const md = require('../lib/markdown');
 const ws = require('../lib/workspace');
 
-const samples = path.join(__dirname, '..', 'samples');
-const source = fs.readFileSync(path.join(samples, 'demo.md'), 'utf8');
+// The fixture workspace is test input, not sample content — it lives under
+// test/ so it doesn't read as something optional you can delete.
+const fixtures = path.join(__dirname, '..', 'test', 'fixtures');
+const source = fs.readFileSync(path.join(fixtures, 'demo.md'), 'utf8');
 const html = md.renderMarkdown(source);
 
 const { meta, body } = md.splitFrontmatter(source);
 const stats = md.readingStats(source);
-const tree = ws.scanTree(samples);
+const tree = ws.scanTree(fixtures);
 const files = ws.flattenFiles(tree);
 
-// Trimmed from the real CMakeLists.txt that exposed the .txt reflow bug. The
+// A real CMakeLists.txt — the file that exposed the .txt reflow bug. The
 // leading `#` comment is the trap: it is also a markdown H1.
-const CMAKE = `cmake_minimum_required(VERSION 3.10)
-project(kawr LANGUAGES CXX)
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-add_executable(kawr src/main.cpp src/App.cpp)
-target_include_directories(kawr PRIVATE src)
-if(APPLE)
-# macOS ships OpenGL + GLUT as system frameworks — nothing to install.
-  find_library(OPENGL_FRAMEWORK OpenGL REQUIRED)
-endif()
-`;
+const CMAKE = fs.readFileSync(path.join(fixtures, 'CMakeLists.txt'), 'utf8');
 
 // Shaped after the real here.txt: an indented outline whose continuation lines
 // markdown would swallow into the paragraph above. No code constructs at all,
@@ -115,6 +107,8 @@ const checks = {
   'readme sorts first': tree.children[0].name === 'README.md',
   'dirs get labels': tree.children.some((c) => c.type === 'dir' && c.label === 'Guides'),
   'tree lists markdown only': !ws.DOC_RE.test('CMakeLists.txt') && ws.DOC_RE.test('a.md'),
+  // The fixture folder contains a real CMakeLists.txt; it must not be listed.
+  'real .txt kept out of the tree': !files.some((f) => f.name.endsWith('.txt')),
   'txt still openable': ws.isMarkdownPath('notes.txt') && ws.isPlainText('notes.txt'),
   'md is not plain text': !ws.isPlainText('a.md'),
 
@@ -128,7 +122,10 @@ const checks = {
   'fenced txt reads as prose': !md.looksPreformatted('```\nx();\ny();\n```\n'),
   'short txt reads as prose': !md.looksPreformatted('hello\nworld\n'),
   'code txt renders verbatim': md.renderTextFile(CMAKE, 'CMakeLists.txt').includes('<figure class="code-card"'),
-  'code txt keeps line breaks': md.renderTextFile(CMAKE, 'CMakeLists.txt').includes('project(kawr LANGUAGES CXX)\nset('),
+  // Both the newline and the blank line survive — this is the whole point:
+  // markdown would reflow these three lines into one paragraph.
+  'code txt keeps line breaks': md.renderTextFile(CMAKE, 'CMakeLists.txt')
+    .includes('project(kawr LANGUAGES CXX)\n\nset(CMAKE_CXX_STANDARD 17)'),
   'code txt titled by filename': md.renderTextFile(CMAKE, 'CMakeLists.txt').includes('>CMakeLists.txt</h1>'),
   'prose txt renders as markdown': md.renderTextFile(PROSE, 'notes.txt').includes('<h1 id="shopping"'),
   'prose txt gets real lists': md.renderTextFile(PROSE, 'notes.txt').includes('<li>'),

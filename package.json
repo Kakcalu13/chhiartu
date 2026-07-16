@@ -21,9 +21,7 @@
       "preload.js",
       "lib/**/*",
       "renderer/**/*",
-      "vendor/**/*",
-      "!samples/**/*",
-      "!scripts/**/*"
+      "vendor/**/*"
     ],
     "fileAssociations": [
       {
