@@ -11,54 +11,240 @@
                  font-src 'self' data:;
                  connect-src 'self';" />
   <title>Markdown Viewer</title>
-
-  <!-- GitHub markdown themes (one enabled at a time) -->
-  <link id="gh-light" rel="stylesheet" href="../vendor/github-markdown-light.css" />
-  <link id="gh-dark" rel="stylesheet" href="../vendor/github-markdown-dark.css" disabled />
-  <!-- highlight.js code themes -->
-  <link id="hl-light" rel="stylesheet" href="../vendor/hljs-github-light.css" />
-  <link id="hl-dark" rel="stylesheet" href="../vendor/hljs-github-dark.css" disabled />
-
+  <!-- KaTeX's stylesheet + fonts only; the math itself is typeset in the preload. -->
+  <link rel="stylesheet" href="../vendor/katex.min.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body data-theme="light">
-  <header id="toolbar">
-    <div class="tb-left">
-      <button id="btn-back" class="tb-btn icon" title="Back" disabled>‹</button>
-      <button id="btn-open" class="tb-btn" title="Open a Markdown file (⌘O)">Open</button>
-      <span class="tb-title" id="doc-title" title=""></span>
-    </div>
-    <div class="tb-center">
-      <div class="seg" id="mode-seg" hidden>
-        <button id="mode-preview" class="seg-btn active" title="Preview">Preview</button>
-        <button id="mode-edit" class="seg-btn" title="Edit (⌘E)">Edit</button>
-      </div>
-    </div>
-    <div class="tb-right">
-      <button id="btn-save" class="tb-btn" title="Save (⌘S)" hidden disabled>Save</button>
-      <button id="btn-reveal" class="tb-btn icon" title="Reveal in Finder" disabled>⤴</button>
-      <button id="btn-theme" class="tb-btn" title="Toggle theme (⌘⇧L)">Auto</button>
-    </div>
+
+  <!-- Icon sprite: inline so it survives the strict CSP and theming. -->
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-sidebar" viewBox="0 0 16 16">
+      <rect x="2" y="3" width="12" height="10" rx="2.2" />
+      <path d="M6.4 3v10" />
+    </symbol>
+    <symbol id="i-panel-right" viewBox="0 0 16 16">
+      <rect x="2" y="3" width="12" height="10" rx="2.2" />
+      <path d="M10.2 3v10" />
+    </symbol>
+    <symbol id="i-split" viewBox="0 0 16 16">
+      <rect x="2" y="3" width="12" height="10" rx="2.2" />
+      <path d="M8 3v10" />
+    </symbol>
+    <symbol id="i-back" viewBox="0 0 16 16"><path d="M9.75 3.5 5.5 8l4.25 4.5" /></symbol>
+    <symbol id="i-forward" viewBox="0 0 16 16"><path d="M6.25 3.5 10.5 8l-4.25 4.5" /></symbol>
+    <symbol id="i-search" viewBox="0 0 16 16">
+      <circle cx="7.2" cy="7.2" r="4.3" /><path d="m10.5 10.5 3 3" />
+    </symbol>
+    <symbol id="i-moon" viewBox="0 0 16 16">
+      <path d="M13 9.6A5.6 5.6 0 0 1 6.4 3a5.6 5.6 0 1 0 6.6 6.6Z" />
+    </symbol>
+    <symbol id="i-sun" viewBox="0 0 16 16">
+      <circle cx="8" cy="8" r="3.1" />
+      <path d="M8 1.6v1.5M8 12.9v1.5M1.6 8h1.5M12.9 8h1.5M3.5 3.5l1 1M11.5 11.5l1 1M12.5 3.5l-1 1M4.5 11.5l-1 1" />
+    </symbol>
+    <symbol id="i-print" viewBox="0 0 16 16">
+      <path d="M4.5 6V2.8h7V6" />
+      <path d="M4.5 11.5h-1A1.5 1.5 0 0 1 2 10V7.5A1.5 1.5 0 0 1 3.5 6h9A1.5 1.5 0 0 1 14 7.5V10a1.5 1.5 0 0 1-1.5 1.5h-1" />
+      <rect x="4.5" y="9.5" width="7" height="4" rx="1" />
+    </symbol>
+    <symbol id="i-export" viewBox="0 0 16 16">
+      <path d="M8 2.6v7.2M5.2 7.2 8 10l2.8-2.8" />
+      <path d="M2.8 11.6v.6a1.6 1.6 0 0 0 1.6 1.6h7.2a1.6 1.6 0 0 0 1.6-1.6v-.6" />
+    </symbol>
+    <symbol id="i-edit" viewBox="0 0 16 16">
+      <path d="M11.1 2.6a1.4 1.4 0 0 1 2 2l-7 7-2.7.7.7-2.7 7-7Z" />
+    </symbol>
+    <symbol id="i-doc" viewBox="0 0 16 16">
+      <path d="M4 2.4h4.6L12.5 6v7.6H4V2.4Z" /><path d="M8.4 2.6V6H12" />
+    </symbol>
+    <symbol id="i-file" viewBox="0 0 16 16">
+      <path d="M4.2 2.6h4.4l3.2 3.2v7.6H4.2V2.6Z" /><path d="M8.4 2.8v3.2h3.2" />
+    </symbol>
+    <symbol id="i-chevron" viewBox="0 0 16 16"><path d="M6.5 4.2 10 8l-3.5 3.8" /></symbol>
+    <symbol id="i-external" viewBox="0 0 16 16"><path d="M6.2 9.8 10.4 5.6M6.8 5.6h3.6v3.6" /></symbol>
+    <symbol id="i-hash" viewBox="0 0 16 16">
+      <path d="M6.6 2.6 5.2 13.4M10.8 2.6 9.4 13.4M2.8 5.9h10.4M2.2 10.1h10.4" />
+    </symbol>
+    <symbol id="i-close" viewBox="0 0 16 16"><path d="M4.6 4.6l6.8 6.8M11.4 4.6l-6.8 6.8" /></symbol>
+    <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3.6v8.8M3.6 8h8.8" /></symbol>
+    <symbol id="i-pin" viewBox="0 0 16 16">
+      <path d="M9.6 1.9 14.1 6.4l-1.9.6-1 1-3.9-3.9 1-1 .6-1.9Z" />
+      <path d="M7.3 4.1 3.4 8l4.6 4.6 3.9-3.9M5.7 10.3 2.4 13.6" />
+    </symbol>
+    <symbol id="i-focus" viewBox="0 0 16 16">
+      <path d="M2.5 5.8V4a1.5 1.5 0 0 1 1.5-1.5h1.8M13.5 5.8V4A1.5 1.5 0 0 0 12 2.5h-1.8M2.5 10.2V12A1.5 1.5 0 0 0 4 13.5h1.8M13.5 10.2V12a1.5 1.5 0 0 1-1.5 1.5h-1.8" />
+    </symbol>
+    <symbol id="i-clock" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.6" /><path d="M8 4.8V8l2.2 1.5" /></symbol>
+    <symbol id="i-branch" viewBox="0 0 16 16">
+      <circle cx="4.6" cy="3.9" r="1.6" /><circle cx="4.6" cy="12.1" r="1.6" /><circle cx="11.4" cy="5.6" r="1.6" />
+      <path d="M4.6 5.5v5M11.4 7.2c0 2-1.6 2.4-3.4 2.7-1.3.2-3.4.5-3.4 2.2" />
+    </symbol>
+  </svg>
+
+  <!-- ── Window titlebar ─────────────────────────────────────────────── -->
+  <header id="titlebar">
+    <div class="tb-lights"></div>
+    <button id="btn-sidebar" class="chip-btn" title="Toggle sidebar (⌥⌘S)" aria-label="Toggle sidebar">
+      <svg class="icon"><use href="#i-sidebar" /></svg>
+    </button>
+    <div class="tb-file" id="tb-file"></div>
+    <div class="tb-flex"></div>
+    <button id="btn-split" class="chip-btn" title="Split view (⌘\)" aria-label="Split view">
+      <svg class="icon"><use href="#i-split" /></svg>
+    </button>
+    <button id="btn-focus" class="chip-btn" title="Focus mode (⇧⌘F)" aria-label="Focus mode">
+      <svg class="icon"><use href="#i-focus" /></svg>
+    </button>
+    <button id="btn-toc" class="chip-btn" title="Toggle table of contents (⌥⌘T)" aria-label="Toggle table of contents">
+      <svg class="icon"><use href="#i-panel-right" /></svg>
+    </button>
   </header>
 
-  <main id="workspace">
-    <section id="editor-pane">
-      <textarea id="editor" spellcheck="false" placeholder="Markdown source…"></textarea>
-    </section>
-    <section id="preview-pane">
-      <div id="dropzone" class="dropzone">
-        <div class="dz-inner">
-          <div class="dz-glyph">⬇</div>
-          <h1>Drop a Markdown file here</h1>
-          <p>or <button id="dz-open" class="link-btn">choose a file…</button></p>
-          <p class="dz-hint">.md · .markdown · .mdx — rendered like GitHub</p>
+  <div id="shell">
+    <!-- ── Left sidebar ──────────────────────────────────────────────── -->
+    <aside id="sidebar">
+      <div class="sb-brand">
+        <div class="brand-mark"><svg class="icon"><use href="#i-doc" /></svg></div>
+        <button class="brand-name" id="brand-name" title="Open a documentation folder (⇧⌘O)">Documentation</button>
+        <span class="brand-version" id="brand-version" hidden></span>
+      </div>
+
+      <button class="sb-search" id="sb-search">
+        <svg class="icon"><use href="#i-search" /></svg>
+        <span>Search docs…</span>
+        <kbd>⌘K</kbd>
+      </button>
+
+      <nav class="sb-tree" id="tree" aria-label="Documents"></nav>
+
+      <div class="sb-foot" id="status-card" hidden>
+        <div class="status-row">
+          <span class="status-label" id="status-label">Document</span>
+          <span class="status-value" id="status-badge"></span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">Last updated</span>
+          <span class="status-value muted" id="status-modified"></span>
         </div>
       </div>
-      <article id="content" class="markdown-body" hidden></article>
-    </section>
-  </main>
+    </aside>
+    <div class="sb-resizer" id="sb-resizer" role="separator" aria-orientation="vertical" tabindex="-1"></div>
 
-  <div id="drag-overlay" class="drag-overlay"><div>Drop to open</div></div>
+    <!-- ── Main column ───────────────────────────────────────────────── -->
+    <main id="main">
+      <div id="toolbar">
+        <div class="tool-group">
+          <button id="btn-back" class="chip-btn" title="Back (⌘[)" aria-label="Back" disabled>
+            <svg class="icon"><use href="#i-back" /></svg>
+          </button>
+          <button id="btn-forward" class="chip-btn" title="Forward (⌘])" aria-label="Forward" disabled>
+            <svg class="icon"><use href="#i-forward" /></svg>
+          </button>
+        </div>
+        <nav class="crumbs" id="crumbs" aria-label="Breadcrumb"></nav>
+        <div class="tb-flex"></div>
+        <div class="tool-group">
+          <button id="btn-theme" class="chip-btn" title="Toggle theme (⇧⌘L)" aria-label="Toggle theme">
+            <svg class="icon icon-moon"><use href="#i-moon" /></svg>
+            <svg class="icon icon-sun"><use href="#i-sun" /></svg>
+          </button>
+          <button id="btn-print" class="chip-btn" title="Print (⌘P)" aria-label="Print" disabled>
+            <svg class="icon"><use href="#i-print" /></svg>
+          </button>
+          <button id="btn-export" class="chip-btn" title="Export as PDF (⇧⌘E)" aria-label="Export as PDF" disabled>
+            <svg class="icon"><use href="#i-export" /></svg>
+          </button>
+        </div>
+        <button id="btn-edit" class="accent-btn" title="Edit source (⌘E)" disabled>
+          <svg class="icon"><use href="#i-edit" /></svg>
+          <span id="btn-edit-label">Edit Source</span>
+        </button>
+        <div class="progress"><div class="progress-fill" id="progress-fill"></div></div>
+      </div>
+
+      <!-- Panes are cloned from the template below; one normally, two when split. -->
+      <div id="panes"></div>
+
+      <section id="editor-pane">
+        <div class="editor-head">
+          <span id="editor-path"></span>
+          <span class="editor-actions">
+            <button class="ghost-btn sm" id="btn-save" disabled>Save</button>
+            <button class="ghost-btn sm" id="btn-close-edit">Done</button>
+          </span>
+        </div>
+        <textarea id="editor" spellcheck="false" placeholder="Markdown source…"></textarea>
+      </section>
+    </main>
+  </div>
+
+  <template id="pane-tpl">
+    <section class="pane">
+      <div class="tabstrip">
+        <div class="tabs" role="tablist"></div>
+        <button class="tab-new" title="New tab (⌘T)" aria-label="New tab">
+          <svg class="icon"><use href="#i-plus" /></svg>
+        </button>
+      </div>
+      <div class="pane-scroll">
+        <div class="page">
+          <div class="canvas">
+            <article class="doc" hidden></article>
+            <nav class="pager" hidden></nav>
+          </div>
+          <aside class="toc" hidden>
+            <div class="toc-inner">
+              <p class="toc-head">On this page</p>
+              <ol class="toc-list"></ol>
+              <div class="toc-foot"></div>
+            </div>
+          </aside>
+        </div>
+        <section class="welcome">
+          <div class="welcome-inner">
+            <div class="welcome-mark"><svg class="icon"><use href="#i-doc" /></svg></div>
+            <h1>Read documentation, beautifully.</h1>
+            <p>Drop a Markdown file here to open its folder as a workspace.</p>
+            <div class="welcome-actions">
+              <button class="accent-btn welcome-open">Open a file…</button>
+              <button class="ghost-btn welcome-folder">Open a folder…</button>
+            </div>
+            <ul class="welcome-recent"></ul>
+          </div>
+        </section>
+      </div>
+    </section>
+  </template>
+
+  <!-- ── Search palette ──────────────────────────────────────────────── -->
+  <div id="palette" hidden>
+    <div class="palette-scrim" id="palette-scrim"></div>
+    <div class="palette-box" role="dialog" aria-modal="true" aria-label="Search documentation">
+      <div class="palette-field">
+        <svg class="icon"><use href="#i-search" /></svg>
+        <input id="palette-input" type="text" placeholder="Search titles, headings, body, code…"
+               autocomplete="off" spellcheck="false" />
+        <kbd class="palette-esc">esc</kbd>
+      </div>
+      <div class="palette-results" id="palette-results"></div>
+      <div class="palette-foot">
+        <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+        <span><kbd>↵</kbd> open</span>
+        <span><kbd>⌘↵</kbd> new tab</span>
+        <span id="palette-count"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Image lightbox ──────────────────────────────────────────────── -->
+  <div id="lightbox" hidden>
+    <img id="lightbox-img" alt="" />
+    <p id="lightbox-cap"></p>
+  </div>
+
+  <div id="drag-overlay"><div class="drag-card">Drop to open</div></div>
+  <div id="toast" hidden></div>
 
   <script src="../vendor/purify.min.js"></script>
   <script src="../vendor/mermaid.min.js"></script>

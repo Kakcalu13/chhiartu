@@ -1,76 +1,34 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 const fs = require('fs');
 const path = require('path');
+const url = require('url');
 
-const { Marked } = require('marked');
-const { markedHighlight } = require('marked-highlight');
-const { gfmHeadingId } = require('marked-gfm-heading-id');
-const hljs = require('highlight.js');
-
-function escapeHtml(s) {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function buildMarked() {
-  const marked = new Marked(
-    markedHighlight({
-      langPrefix: 'hljs language-',
-      highlight(code, lang) {
-        const l = (lang || '').trim().toLowerCase();
-        if (l === 'mermaid') return code; // handled by the mermaid renderer override below
-        const language = hljs.getLanguage(l) ? l : 'plaintext';
-        try {
-          return hljs.highlight(code, { language, ignoreIllegals: true }).value;
-        } catch {
-          return escapeHtml(code);
-        }
-      },
-    }),
-    gfmHeadingId()
-  );
-
-  marked.setOptions({ gfm: true, breaks: false });
-
-  // Emit mermaid fences as <pre class="mermaid"> so the renderer can draw them.
-  marked.use({
-    renderer: {
-      code(token) {
-        const lang = (token.lang || '').trim().toLowerCase();
-        if (lang === 'mermaid') {
-          return `<pre class="mermaid">${escapeHtml(token.text)}</pre>\n`;
-        }
-        return false; // fall through to the default (highlighted) code renderer
-      },
-    },
-  });
-
-  return marked;
-}
-
-const marked = buildMarked();
-
-function renderMarkdown(md) {
-  return marked.parse(md);
-}
-
-function firstHeading(md) {
-  const m = md.match(/^\s{0,3}#\s+(.+?)\s*#*\s*$/m);
-  return m ? m[1].trim() : null;
-}
+const md = require('./lib/markdown');
+const ws = require('./lib/workspace');
 
 function readAndRender(filePath) {
   const content = fs.readFileSync(filePath, 'utf8');
+  const { meta, body } = md.splitFrontmatter(content);
+  const stat = ws.statOf(filePath);
+  const stats = md.readingStats(content);
+  const name = path.basename(filePath);
+
+  // A source-ish .txt is shown verbatim, and its first `# comment` line is a
+  // comment rather than a title — so don't let firstHeading claim otherwise.
+  const verbatim = ws.isPlainText(filePath) && md.looksPreformatted(content);
+
   return {
     path: filePath,
     dir: path.dirname(filePath),
-    name: path.basename(filePath),
-    title: firstHeading(content) || path.basename(filePath),
-    html: renderMarkdown(content),
+    name,
+    title: verbatim ? name : (meta.title || md.firstHeading(body) || ws.titleize(name)),
+    meta: verbatim ? {} : meta,
+    html: ws.isPlainText(filePath) ? md.renderTextFile(content, name) : md.renderMarkdown(content),
     text: content,
+    words: stats.words,
+    minutes: stats.minutes,
+    mtime: stat ? stat.mtime : null,
+    size: stat ? stat.size : null,
   };
 }
 
@@ -82,8 +40,7 @@ function resolveRelative(dir, ref) {
     if (ref.startsWith('#')) return null; // in-page anchor
     if (ref.startsWith('data:')) return null;
     const clean = ref.replace(/[?#].*$/, '');
-    const abs = path.resolve(dir, decodeURI(clean));
-    return abs;
+    return path.resolve(dir, decodeURI(clean));
   } catch {
     return null;
   }
@@ -117,34 +74,106 @@ function unwatch(filePath) {
   }
 }
 
+// Cheap text read for the search index — skips anything too big to be prose.
+function readText(filePath, maxBytes = 1024 * 1024) {
+  try {
+    const s = fs.statSync(filePath);
+    if (s.size > maxBytes) return null;
+    return fs.readFileSync(filePath, 'utf8');
+  } catch {
+    return null;
+  }
+}
+
+// The workspace root for a freshly opened file: its own folder, unless that
+// folder is itself a `docs`-ish leaf, in which case the parent reads better as
+// the project root in the sidebar.
+function rootForFile(filePath) {
+  const dir = path.dirname(filePath);
+  const base = path.basename(dir).toLowerCase();
+  if (['docs', 'doc', 'documentation'].includes(base)) return dir;
+  return dir;
+}
+
+function projectVersion(root) {
+  for (const rel of ['package.json', 'VERSION', 'version.txt']) {
+    try {
+      const raw = fs.readFileSync(path.join(root, rel), 'utf8');
+      if (rel === 'package.json') {
+        const v = JSON.parse(raw).version;
+        if (v) return 'v' + v;
+      } else if (raw.trim()) {
+        return 'v' + raw.trim().split('\n')[0];
+      }
+    } catch {
+      /* not present */
+    }
+  }
+  return null;
+}
+
 contextBridge.exposeInMainWorld('md', {
-  // Drag & drop gives a File; Electron resolves its real path here.
+  // ---- documents ----
   pathForFile: (file) => {
     try { return webUtils.getPathForFile(file); } catch { return null; }
   },
-  isMarkdown: (p) => /\.(md|markdown|mdown|mkd|mdx|markdn|txt|text)$/i.test(p || ''),
+  isMarkdown: ws.isMarkdownPath,
   readAndRender: (filePath) => {
     try { return readAndRender(filePath); }
-    catch (e) { return { error: String(e && e.message || e), path: filePath }; }
+    catch (e) { return { error: String((e && e.message) || e), path: filePath }; }
   },
-  render: (text) => {
-    try { return renderMarkdown(String(text)); }
-    catch (e) { return '<p>Render error: ' + escapeHtml(String(e && e.message || e)) + '</p>'; }
+  // `name` lets live editing honour the same .txt decision as readAndRender.
+  render: (text, name) => {
+    try {
+      return ws.isPlainText(name)
+        ? md.renderTextFile(String(text), path.basename(name))
+        : md.renderMarkdown(String(text));
+    } catch (e) {
+      return '<p>Render error: ' + md.escapeHtml(String((e && e.message) || e)) + '</p>';
+    }
   },
   writeFile: (filePath, text) => {
     try { fs.writeFileSync(filePath, text, 'utf8'); return { ok: true }; }
-    catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+    catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
   },
-  firstHeading,
+  readText,
+  firstHeading: md.firstHeading,
+  readingStats: md.readingStats,
+
+  // ---- workspace ----
+  rootForFile,
+  scanTree: (root) => {
+    try { return ws.scanTree(root); }
+    catch (e) { return { error: String((e && e.message) || e) }; }
+  },
+  flattenFiles: (tree) => ws.flattenFiles(tree),
+  titleize: ws.titleize,
+  gitInfo: (dir) => ws.gitInfo(dir),
+  projectVersion,
+  stat: ws.statOf,
+  basename: (p) => path.basename(p || ''),
+  dirname: (p) => path.dirname(p || ''),
+  relative: (from, to) => path.relative(from || '', to || ''),
+  sep: path.sep,
+
+  // ---- paths & links ----
   resolveRelative,
-  fileUrl: (abs) => (abs ? require('url').pathToFileURL(abs).href : null),
+  fileUrl: (abs) => (abs ? url.pathToFileURL(abs).href : null),
   exists: (p) => { try { return fs.existsSync(p); } catch { return false; } },
   watch: watchFile,
   unwatch,
+
+  // ---- shell / ipc ----
   pickFile: () => ipcRenderer.invoke('pick-file'),
-  openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  pickFolder: () => ipcRenderer.invoke('pick-folder'),
+  openExternal: (u) => ipcRenderer.invoke('open-external', u),
   showItem: (p) => ipcRenderer.invoke('show-item', p),
+  openInEditor: (p) => ipcRenderer.invoke('open-in-editor', p),
+  print: () => ipcRenderer.invoke('print'),
+  exportPdf: (name) => ipcRenderer.invoke('export-pdf', name),
+  setNativeTheme: (source) => ipcRenderer.invoke('set-native-theme', source),
   rendererReady: () => ipcRenderer.invoke('renderer-ready'),
   onOpenPath: (cb) => ipcRenderer.on('open-path', (_e, p) => cb(p)),
   onMenu: (cb) => ipcRenderer.on('menu', (_e, action) => cb(action)),
+  onFullscreen: (cb) => ipcRenderer.on('fullscreen', (_e, v) => cb(v)),
 });
